@@ -1,0 +1,49 @@
+diff --git a/include/grpc/impl/codegen/port_platform.h b/include/grpc/impl/codegen/port_platform.h
+index 8b9831bae..405a23dad 100644
+--- a/include/grpc/impl/codegen/port_platform.h
++++ b/include/grpc/impl/codegen/port_platform.h
+@@ -39,14 +39,14 @@
+ /*
+  * Defines GPR_ABSEIL_SYNC to use synchronization features from Abseil
+  */
+-#ifndef GPR_ABSEIL_SYNC
+-#if defined(__APPLE__)
+-// This is disabled on Apple platforms because macos/grpc_basictests_c_cpp
+-// fails with this. https://github.com/grpc/grpc/issues/23661
+-#else
+-#define GPR_ABSEIL_SYNC 1
+-#endif
+-#endif  // GPR_ABSEIL_SYNC
++// #ifndef GPR_ABSEIL_SYNC
++// #if defined(__APPLE__)
++// // This is disabled on Apple platforms because macos/grpc_basictests_c_cpp
++// // fails with this. https://github.com/grpc/grpc/issues/23661
++// #else
++// #define GPR_ABSEIL_SYNC 1
++// #endif
++// #endif  // GPR_ABSEIL_SYNC
+ 
+ /*
+  * Defines GRPC_ERROR_IS_ABSEIL_STATUS to use absl::Status for grpc_error_handle
+diff --git a/src/core/lib/gpr/sync_posix.cc b/src/core/lib/gpr/sync_posix.cc
+index 7ed5403a0..1e0bca4fe 100644
+--- a/src/core/lib/gpr/sync_posix.cc
++++ b/src/core/lib/gpr/sync_posix.cc
+@@ -94,7 +94,7 @@ int gpr_mu_trylock(gpr_mu* mu) {
+ void gpr_cv_init(gpr_cv* cv) {
+   pthread_condattr_t attr;
+   GPR_ASSERT(pthread_condattr_init(&attr) == 0);
+-#if GPR_LINUX
++#if GPR_LINUX || GPR_ANDROID
+   GPR_ASSERT(pthread_condattr_setclock(&attr, CLOCK_MONOTONIC) == 0);
+ #endif  // GPR_LINUX
+ 
+@@ -127,7 +127,7 @@ int gpr_cv_wait(gpr_cv* cv, gpr_mu* mu, gpr_timespec abs_deadline) {
+ #endif
+   } else {
+     struct timespec abs_deadline_ts;
+-#if GPR_LINUX
++#if GPR_LINUX || GPR_ANDROID
+     abs_deadline = gpr_convert_clock_type(abs_deadline, GPR_CLOCK_MONOTONIC);
+ #else
+     abs_deadline = gpr_convert_clock_type(abs_deadline, GPR_CLOCK_REALTIME);
