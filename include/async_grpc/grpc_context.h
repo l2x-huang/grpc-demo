@@ -38,13 +38,14 @@ public:
         unifex::atomic_intrusive_queue<task_base, &task_base::next_>;
     explicit grpc_context(std::unique_ptr<grpc::CompletionQueue> cq);
     ~grpc_context();
+    grpc_context(const grpc_context&) = delete;
+    grpc_context& operator=(const grpc_context&) = delete;
+    grpc_context(grpc_context&&) = delete;
+    grpc_context& operator=(grpc_context&&) = delete;
 
     template <class StopToken = unifex::inplace_stop_token>
     void run(StopToken = {});
 
-    inline grpc::CompletionQueue* get_completion_queue() const noexcept {
-        return completionQueue_.get();
-    }
     scheduler get_scheduler() noexcept;
 
     template <class F>
@@ -58,6 +59,10 @@ private:
     void schedule_local(task_base* op) noexcept;
     void schedule_local(task_queue ops) noexcept;
     void schedule_remote(task_base* op) noexcept;
+
+    inline grpc::CompletionQueue* get_completion_queue() const noexcept {
+        return completionQueue_.get();
+    }
 
     // Execute all ready-to-run items on the local queue.
     // Will not run other items that were enqueued during the execution of the
@@ -122,7 +127,7 @@ class grpc_context::grpc_sender {
         }
 
         void start_io() noexcept {
-            initiating_function_(this);
+            initiating_function_(context_.get_completion_queue(), this);
             this->execute_ = &execute_impl;
         }
 
@@ -181,7 +186,10 @@ class grpc_context::schedule_sender {
     class operation : private task_base {
     public:
         void start() noexcept {
-            UNIFEX_TRY { context_.schedule_impl(this); }
+            UNIFEX_TRY {
+                this->execute_ = &execute_impl;
+                context_.schedule_impl(this);
+            }
             UNIFEX_CATCH(...) {
                 unifex::set_error(static_cast<Receiver&&>(receiver_),
                                   std::current_exception());
@@ -194,9 +202,7 @@ class grpc_context::schedule_sender {
         template <typename Receiver2>
         explicit operation(grpc_context& context, Receiver2&& r)
           : context_(context)
-          , receiver_((Receiver2 &&) r) {
-            this->execute_ = &execute_impl;
-        }
+          , receiver_((Receiver2 &&) r) {}
 
         static void execute_impl(task_base* p, bool) noexcept {
             using namespace unifex;
@@ -255,7 +261,7 @@ class grpc_context::scheduler {
 public:
     scheduler(const scheduler&) noexcept = default;
     scheduler& operator=(const scheduler&) = default;
-    ~scheduler()                           = default;
+    ~scheduler() = default;
 
     schedule_sender schedule() const noexcept {
         return schedule_sender{*context_};
@@ -309,4 +315,4 @@ inline grpc_context::scheduler grpc_context::get_scheduler() noexcept {
     return scheduler{*this};
 }
 
-} // namespace agrpc
+}  // namespace agrpc

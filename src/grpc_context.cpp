@@ -11,10 +11,11 @@
 
 #if 0
 #    include <fmt/core.h>
-#    define LOG(...)                                      \
-        do {                                              \
-            fmt::print("{}\n", fmt::format(__VA_ARGS__)); \
-            fflush(stdout);                               \
+#    include <fmt/format.h>
+#    define LOG(...)                                                           \
+        do {                                                                   \
+            fmt::print("[{}] {}\n", fmt::ptr(this), fmt::format(__VA_ARGS__)); \
+            fflush(stdout);                                                    \
         } while (0)
 #else
 #    define LOG(...) (void)0
@@ -31,6 +32,7 @@ grpc_context::grpc_context(std::unique_ptr<grpc::CompletionQueue> cq)
 }
 
 grpc_context::~grpc_context() {
+    completionQueue_->Shutdown();
 }
 
 bool grpc_context::is_running_on_io_thread() const noexcept {
@@ -39,8 +41,8 @@ bool grpc_context::is_running_on_io_thread() const noexcept {
 
 void grpc_context::run_impl(const bool& shouldStop) {
     LOG("run loop started");
-    auto* old_ctx         = std::exchange(kCurrentThreadContext, this);
-    unifex::scope_guard g = [=]() noexcept {
+    auto* old_ctx = std::exchange(kCurrentThreadContext, this);
+    unifex::scope_guard g = [this, old_ctx]() noexcept {
         std::exchange(kCurrentThreadContext, old_ctx);
         LOG("run loop exited");
     };
@@ -142,7 +144,7 @@ void grpc_context::acquire_completion_queue_items() {
     do {
         if (tag == (void*)&workAlarm_) {
             LOG("to read from remote queue");
-            isNotifing_               = false;
+            isNotifing_ = false;
             remoteQueueReadSubmitted_ = false;
             break;
         }
@@ -150,8 +152,8 @@ void grpc_context::acquire_completion_queue_items() {
         auto* task = static_cast<task_base*>(tag);
         task->execute(ok);
 
-        auto status = completionQueue_->AsyncNext(&tag, &ok,
-                                                  gpr_now(GPR_CLOCK_MONOTONIC));
+        auto status = completionQueue_->AsyncNext(
+            &tag, &ok, gpr_now(GPR_CLOCK_MONOTONIC));
         if (status == grpc::CompletionQueue::NextStatus::SHUTDOWN) {
             LOG("completion queue is shutting down.");
             exit(-1);
@@ -163,8 +165,9 @@ void grpc_context::acquire_completion_queue_items() {
 
 bool grpc_context::try_schedule_local_remote_queue_contents() noexcept {
     auto ops = remoteQueue_.try_mark_inactive_or_dequeue_all();
-    LOG("{}", ops.empty() ? "remote queue is empty"
-                          : "registered items from remote queue");
+    LOG("{}",
+        ops.empty() ? "remote queue is empty"
+                    : "registered items from remote queue");
     if (!ops.empty()) {
         schedule_local(std::move(ops));
         return false;
@@ -176,9 +179,9 @@ void grpc_context::signal_remote_queue() {
     if (!isNotifing_.load()) {
         LOG("signal_remote_queue");
         isNotifing_ = true;
-        auto tp     = gpr_now(GPR_CLOCK_MONOTONIC);
+        auto tp = gpr_now(GPR_CLOCK_MONOTONIC);
         workAlarm_.Set(completionQueue_.get(), tp, &workAlarm_);
     }
 }
 
-} // namespace agrpc
+}  // namespace agrpc

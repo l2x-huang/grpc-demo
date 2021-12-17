@@ -29,8 +29,9 @@ cpmaddpackage(
   GIT_TAG 8.0.1
   OPTIONS "FMT_INSTALL YES" # create an installable target
 )
-include(cmake/grpc.cmake)
 include(cmake/unifex.cmake)
+find_package(Protobuf REQUIRED)
+find_package(gRPC CONFIG REQUIRED)
 
 
 # ---- Add source files ----
@@ -50,7 +51,10 @@ set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 20)
 # all compile: https://cmake.org/cmake/help/latest/variable/CMAKE_LANG_COMPILER_ID.html
 target_compile_options(${PROJECT_NAME} PUBLIC "$<$<COMPILE_LANG_AND_ID:CXX,ARMClang,AppleClang,Clang>:-stdlib=libc++>")
 target_compile_options(${PROJECT_NAME} PUBLIC "$<$<COMPILE_LANG_AND_ID:CXX,MSVC>:/permissive->")
-target_link_libraries(${PROJECT_NAME} PRIVATE fmt::fmt unifex::unifex gRPC::grpc++ gRPC::gpr)
+target_link_libraries(
+  ${PROJECT_NAME} PRIVATE fmt::fmt
+  PUBLIC unifex::unifex gRPC::grpc++ gRPC::gpr
+)
 target_include_directories(
   ${PROJECT_NAME} PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include/${PROJECT_NAME}-${PROJECT_VERSION}>
@@ -71,5 +75,5 @@ packageproject(
   INCLUDE_DESTINATION include/${PROJECT_NAME}-${PROJECT_VERSION}
   VERSION_HEADER "${VERSION_HEADER_LOCATION}"
   COMPATIBILITY SameMajorVersion
-  DEPENDENCIES "fmt 8.0.1;gRPC 1.41.0;unifex 0.1.1"
+  DEPENDENCIES "gRPC 1.41.0;unifex 0.1.1"
 )

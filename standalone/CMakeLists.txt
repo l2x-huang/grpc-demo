@@ -10,7 +10,8 @@ include(../cmake/CPM.cmake)
 # PackageProject.cmake will be used to make our target installable
 cpmaddpackage("gh:TheLartians/PackageProject.cmake@1.8.0")
 include(../cmake/unifex.cmake)
-include(../cmake/grpc.cmake)
+find_package(Protobuf REQUIRED)
+find_package(gRPC CONFIG REQUIRED)
 
 cpmaddpackage(NAME async_grpc SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/..)
 cpmaddpackage(NAME proto SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/proto)

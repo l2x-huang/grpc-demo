@@ -9,11 +9,12 @@ if(PROJECT_SOURCE_DIR STREQUAL PROJECT_BINARY_DIR)
   )
 endif()
 
-include(cmake/tools.cmake)
 include(cmake/CPM.cmake)
 # PackageProject.cmake will be used to make our target installable
 cpmaddpackage("gh:TheLartians/PackageProject.cmake@1.8.0")
-include(cmake/grpc.cmake)
+find_package(Protobuf REQUIRED)
+find_package(gRPC CONFIG REQUIRED)
+
 
 file(
   GLOB_RECURSE protos

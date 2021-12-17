@@ -1,9 +1,13 @@
 #include "async_grpc/grpc_context.h"
 #include "helloworld/helloworld.grpc.pb.h"
+#include "helloworld/helloworld.pb.h"
 #include <functional>
+#include <google/protobuf/any.pb.h>
+#include <google/protobuf/util/json_util.h>
 #include <grpcpp/alarm.h>
 #include <grpcpp/grpcpp.h>
 #include <iostream>
+#include <string>
 #include <unifex/async_scope.hpp>
 #include <unifex/single_thread_context.hpp>
 #include <unifex/task.hpp>
@@ -12,11 +16,11 @@
 
 unifex::task<void> timeout(agrpc::grpc_context& ctx, int ms) {
     std::cout << " --------------------- before " << std::endl;
-    auto cq = ctx.get_completion_queue();
     grpc::Alarm alarm;
     auto tp = gpr_time_add(gpr_now(GPR_CLOCK_MONOTONIC),
                            gpr_time_from_millis(ms, GPR_TIMESPAN));
-    co_await ctx.async([&](void* tag) { alarm.Set(cq, tp, tag); });
+    co_await ctx.async(
+        [&](grpc::CompletionQueue* cq, void* tag) { alarm.Set(cq, tp, tag); });
     std::cout << " --------------------- after " << std::endl;
 }
 
@@ -44,18 +48,19 @@ int main() {
                 &context};
 
             std::cout << "[SayHello] wait for request in" << std::endl;
-            bool ok = co_await ctx.async([&](void* tag) {
-                auto cq =
-                    (grpc::ServerCompletionQueue*)ctx.get_completion_queue();
-                service.RequestSayHello(&context, &request, &writer, cq, cq,
-                                        tag);
-            });
+            bool ok =
+                co_await ctx.async([&](grpc::CompletionQueue* cq, void* tag) {
+                    auto _cq = (grpc::ServerCompletionQueue*)cq;
+                    service.RequestSayHello(
+                        &context, &request, &writer, _cq, _cq, tag);
+                });
             std::cout << "[SayHello] request: " << request.name() << std::endl;
             if (ok) {
                 helloworld::HelloReply response;
                 response.set_message("Hello " + request.name());
                 auto task = unifex::then(
-                    ctx.async([writer, response](void* tag) mutable {
+                    ctx.async([writer, response](grpc::CompletionQueue*,
+                                                 void* tag) mutable {
                         std::cout << "[SayHello] response start" << std::endl;
                         writer.Finish(response, grpc::Status::OK, tag);
                     }),

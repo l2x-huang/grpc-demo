@@ -1,4 +1,5 @@
 # refer: https://www.jianshu.com/p/5dea6bdbbabb
+# refer: https://clang.llvm.org/docs/ClangFormatStyleOptions.html
 
 ---
 BasedOnStyle: LLVM
@@ -17,23 +18,24 @@ AccessModifierOffset: -4
 # 左括号(左圆括号、左尖括号、左方括号)后的对齐: Align, DontAlign, AlwaysBreak(总是在左括号后换行)
 AlignAfterOpenBracket: Align
 # 连续赋值时，对齐所有等号
-AlignConsecutiveAssignments: true
+AlignConsecutiveAssignments: false
 # 连续声明时，对齐所有声明的变量名
 AlignConsecutiveDeclarations: false
 # 用于在使用反斜杠换行中对齐反斜杠的选项
 AlignEscapedNewlines: Left
 AlignOperands: true
 AlignTrailingComments: true
+AlignConsecutiveMacros: Consecutive
 
 #  -------------------------- 允许项 --------------------------
 # 如果函数调用或带括号的初始化列表不适合全部在一行时
 # 允许将所有参数放到下一行，即使BinPackArguments为false
 AllowAllArgumentsOnNextLine: true
-AllowAllParametersOfDeclarationOnNextLine: false
+AllowAllParametersOfDeclarationOnNextLine: true
 # 允许构造函数的初始化参数放在下一行
 AllowAllConstructorInitializersOnNextLine: false
 # 允许短的块放在同一行(Always 总是将短块合并成一行，Empty 只合并空块)
-AllowShortBlocksOnASingleLine: Empty
+#AllowShortBlocksOnASingleLine: Never
 # 允许短的case标签放在同一行
 AllowShortCaseLabelsOnASingleLine: true
 # 允许短的if语句保持在同一行
@@ -53,12 +55,12 @@ AlwaysBreakBeforeMultilineStrings: false
 AlwaysBreakTemplateDeclarations: Yes
 
 # false表示函数实参要么都在同一行，要么都各自一行
-BinPackArguments: true
+BinPackArguments: false
 # false表示所有形参要么都在同一行，要么都各自一行
 BinPackParameters: true
 
 # 大括号换行，只有当 BreakBeforeBraces 设置为Custom时才有效
-BreakBeforeBinaryOperators: None
+BreakBeforeBinaryOperators: NonAssignment
 BreakBeforeBraces: Custom
 BraceWrapping:
   {
@@ -73,12 +75,12 @@ BraceWrapping:
     BeforeCatch: false,
     BeforeElse: false,
     IndentBraces: false,
-  }
 #SplitEmptyFunction: true
 #SplitEmptyRecord: true
 #SplitEmptyNamespace: true
-# 三元运算操作符换行位置（?和: 在新行还是尾部）
+  }
 BreakBeforeInheritanceComma: true
+# 三元运算操作符换行位置（?和: 在新行还是尾部）
 BreakBeforeTernaryOperators: true
 # 在构造函数的初始化列表的逗号前换行
 BreakConstructorInitializers: BeforeComma
@@ -100,7 +102,7 @@ KeepEmptyLinesAtTheStartOfBlocks: false
 MaxEmptyLinesToKeep: 1
 NamespaceIndentation: None
 PointerAlignment: Left
-ReflowComments: true
+ReflowComments: false
 SortIncludes: true
 SortUsingDeclarations: true
 
@@ -116,7 +118,7 @@ SpaceBeforeAssignmentOperators: true
 SpaceBeforeRangeBasedForLoopColon: true
 SpaceInEmptyBlock: false
 SpaceInEmptyParentheses: false
-SpacesBeforeTrailingComments: 1
+SpacesBeforeTrailingComments: 2
 SpacesInAngles: false
 SpacesInCStyleCastParentheses: false
 SpacesInParentheses: false
