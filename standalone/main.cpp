@@ -1,4 +1,6 @@
+#include "async_grpc/executor.h"
 #include "async_grpc/grpc_context.h"
+#include "async_grpc/rpcs.h"
 #include "helloworld/helloworld.grpc.pb.h"
 #include "helloworld/helloworld.pb.h"
 #include <functional>
@@ -27,51 +29,31 @@ unifex::task<void> timeout(agrpc::grpc_context& ctx, int ms) {
 int main() {
     grpc::ServerBuilder builder;
     helloworld::Greeter::AsyncService service;
-    agrpc::grpc_context ctx(builder.AddCompletionQueue());
+    // agrpc::grpc_context ctx(builder.AddCompletionQueue());
+    agrpc::grpc_executor ex(builder.AddCompletionQueue());
     builder.AddListeningPort("0.0.0.0:50051",
                              grpc::InsecureServerCredentials());
     builder.RegisterService(&service);
     std::unique_ptr<grpc::Server> server = builder.BuildAndStart();
 
-    unifex::async_scope scope;
-    unifex::single_thread_context thread;
-
     // alarm
-    scope.spawn_on(thread.get_scheduler(), timeout(ctx, 500));
+    ex.spawn_on(ex.get_grpc_scheduler(), timeout(ex.get_grpc_context(), 500));
 
     // helloworld server
-    scope.spawn_on(ctx.get_scheduler(), [&]() mutable -> unifex::task<void> {
-        for (;;) {
-            grpc::ServerContext context;
-            helloworld::HelloRequest request;
-            grpc::ServerAsyncResponseWriter<helloworld::HelloReply> writer{
-                &context};
+    using req_t = helloworld::HelloRequest;
+    using rep_t = helloworld::HelloReply;
+    auto handle = [](const req_t& req, rep_t& rep) -> bool {
+        rep.set_message("Hello " + req.name());
+        return true;
+    };
+    auto task = agrpc::async_call_data<req_t, rep_t>(
+        ex,
+        &helloworld::Greeter::AsyncService::RequestSayHello,
+        &service,
+        handle,
+        true);
+    ex.spawn_on(ex.get_grpc_scheduler(), std::move(task));
 
-            std::cout << "[SayHello] wait for request in" << std::endl;
-            bool ok =
-                co_await ctx.async([&](grpc::CompletionQueue* cq, void* tag) {
-                    auto _cq = (grpc::ServerCompletionQueue*)cq;
-                    service.RequestSayHello(
-                        &context, &request, &writer, _cq, _cq, tag);
-                });
-            std::cout << "[SayHello] request: " << request.name() << std::endl;
-            if (ok) {
-                helloworld::HelloReply response;
-                response.set_message("Hello " + request.name());
-                auto task = unifex::then(
-                    ctx.async([writer, response](grpc::CompletionQueue*,
-                                                 void* tag) mutable {
-                        std::cout << "[SayHello] response start" << std::endl;
-                        writer.Finish(response, grpc::Status::OK, tag);
-                    }),
-                    [](bool) {
-                        std::cout << "[SayHello] response end" << std::endl;
-                    });
-                scope.spawn_on(ctx.get_scheduler(), task);
-            }
-        }
-    }());
-
-    ctx.run();
+    ex.run();
     return 0;
 }
