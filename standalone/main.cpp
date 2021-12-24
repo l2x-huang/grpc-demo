@@ -42,7 +42,8 @@ int main() {
     // helloworld server
     using req_t = helloworld::HelloRequest;
     using rep_t = helloworld::HelloReply;
-    auto handle = [](const req_t& req, rep_t& rep) -> bool {
+    auto handle =
+        [](const grpc::ServerContext& ctx, const req_t& req, rep_t& rep) -> bool {
         rep.set_message("Hello " + req.name());
         return true;
     };

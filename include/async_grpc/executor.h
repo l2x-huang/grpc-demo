@@ -1,18 +1,22 @@
 #pragma once
 
+#include <thread>
+#include <utility>
 #include <async_grpc/grpc_context.h>
+#include <async_grpc/rate.h>
 #include <grpcpp/completion_queue.h>
 #include <unifex/async_scope.hpp>
 #include <unifex/inplace_stop_token.hpp>
 #include <unifex/static_thread_pool.hpp>
-#include <utility>
 
 namespace agrpc {
 
 class grpc_executor {
 public:
-    explicit grpc_executor(std::unique_ptr<grpc::CompletionQueue> cq)
-      : grpc_ctx(std::move(cq)) {}
+    explicit grpc_executor(std::unique_ptr<grpc::CompletionQueue> cq,
+                           int count = std::thread::hardware_concurrency())
+      : grpc_ctx(std::move(cq))
+      , pool_ctx(count) {}
 
     ~grpc_executor() { scope.request_stop(); }
 
@@ -27,12 +31,12 @@ public:
 
     template <class Sender>
     inline void spawn_local(Sender&& sender) {
-        scope.spawn(grpc_ctx.get_scheduler(), (Sender &&) sender);
+        scope.spawn_on(grpc_ctx.get_scheduler(), (Sender &&) sender);
     }
 
     template <class Sender>
     inline void spawn_blocking(Sender&& sender) {
-        scope.spawn(pool_ctx.get_scheduler(), (Sender &&) sender);
+        scope.spawn_on(pool_ctx.get_scheduler(), (Sender &&) sender);
     }
 
     // notice: sender return void & noexcept
@@ -52,8 +56,8 @@ public:
     }
 
     template <class StopToken = unifex::inplace_stop_token>
-    inline void run(StopToken token = {}) {
-        grpc_ctx.run((StopToken &&) token);
+    inline void run(Rate rate = Rate(200), StopToken token = {}) {
+        grpc_ctx.run(rate, (StopToken &&) token);
     }
 
 private:

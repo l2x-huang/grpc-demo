@@ -1,6 +1,8 @@
 #pragma once
 
 #include <atomic>
+#include <utility>
+#include <async_grpc/rate.h>
 #include <grpcpp/alarm.h>
 #include <grpcpp/grpcpp.h>
 #include <unifex/config.hpp>
@@ -10,7 +12,6 @@
 #include <unifex/inplace_stop_token.hpp>
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/stop_token_concepts.hpp>
-#include <utility>
 
 namespace agrpc {
 class grpc_context;
@@ -44,7 +45,7 @@ public:
     grpc_context& operator=(grpc_context&&) = delete;
 
     template <class StopToken = unifex::inplace_stop_token>
-    void run(StopToken = {});
+    void run(Rate rate, StopToken = {});
 
     scheduler get_scheduler() noexcept;
 
@@ -53,7 +54,7 @@ public:
 
 private:
     bool is_running_on_io_thread() const noexcept;
-    void run_impl(const bool& shouldStop);
+    void run_impl(const bool& shouldStop, Rate rate);
 
     void schedule_impl(task_base* op);
     void schedule_local(task_base* op) noexcept;
@@ -134,12 +135,17 @@ class grpc_context::grpc_sender {
         static void execute_impl(task_base* p, bool ok) noexcept {
             using namespace unifex;
             operation& self = *static_cast<operation*>(p);
+            if constexpr (!is_stop_never_possible_v<stop_token_type_t<Receiver>>) {
+                if (get_stop_token(self.receiver_).stop_requested()) {
+                    unifex::set_done(static_cast<Receiver&&>(self.receiver_));
+                    return;
+                }
+            }
             if constexpr (is_nothrow_receiver_of_v<Receiver>) {
                 unifex::set_value(static_cast<Receiver&&>(self.receiver_), ok);
             } else {
                 UNIFEX_TRY {
-                    unifex::set_value(static_cast<Receiver&&>(self.receiver_),
-                                      ok);
+                    unifex::set_value(static_cast<Receiver&&>(self.receiver_), ok);
                 }
                 UNIFEX_CATCH(...) {
                     unifex::set_error(static_cast<Receiver&&>(self.receiver_),
@@ -207,8 +213,7 @@ class grpc_context::schedule_sender {
         static void execute_impl(task_base* p, bool) noexcept {
             using namespace unifex;
             operation& op = *static_cast<operation*>(p);
-            if constexpr (!is_stop_never_possible_v<
-                              stop_token_type_t<Receiver>>) {
+            if constexpr (!is_stop_never_possible_v<stop_token_type_t<Receiver>>) {
                 if (get_stop_token(op.receiver_).stop_requested()) {
                     unifex::set_done(static_cast<Receiver&&>(op.receiver_));
                     return;
@@ -263,9 +268,7 @@ public:
     scheduler& operator=(const scheduler&) = default;
     ~scheduler() = default;
 
-    schedule_sender schedule() const noexcept {
-        return schedule_sender{*context_};
-    }
+    schedule_sender schedule() const noexcept { return schedule_sender{*context_}; }
 
 private:
     friend grpc_context;
@@ -287,7 +290,7 @@ private:
 };
 
 template <typename StopToken>
-void grpc_context::run(StopToken stopToken) {
+void grpc_context::run(Rate rate, StopToken stopToken) {
     struct stop_operation : task_base {
         stop_operation() noexcept {
             this->execute_ = [](task_base* op, bool) noexcept {
@@ -303,7 +306,7 @@ void grpc_context::run(StopToken stopToken) {
     };
     typename StopToken::template callback_type<decltype(onStopRequested)>
         stopCallback{std::move(stopToken), std::move(onStopRequested)};
-    run_impl(stopOp.shouldStop_);
+    run_impl(stopOp.shouldStop_, (Rate &&) rate);
 }
 
 template <class F>

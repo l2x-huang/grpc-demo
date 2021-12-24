@@ -4,10 +4,11 @@
 #include <cstddef>
 #include <cstdio>
 #include <cstdlib>
+#include <utility>
+#include <async_grpc/rate.h>
 #include <unifex/config.hpp>
 #include <unifex/scope_guard.hpp>
 #include <unistd.h>
-#include <utility>
 
 #if 0
 #    include <fmt/core.h>
@@ -39,7 +40,7 @@ bool grpc_context::is_running_on_io_thread() const noexcept {
     return this == kCurrentThreadContext;
 }
 
-void grpc_context::run_impl(const bool& shouldStop) {
+void grpc_context::run_impl(const bool& shouldStop, Rate rate) {
     LOG("run loop started");
     auto* old_ctx = std::exchange(kCurrentThreadContext, this);
     unifex::scope_guard g = [this, old_ctx]() noexcept {
@@ -60,8 +61,7 @@ void grpc_context::run_impl(const bool& shouldStop) {
         // completion queue - in which case we'll just wait until we receive the
         // completion-queue item).
         if (!remoteQueueReadSubmitted_) {
-            remoteQueueReadSubmitted_ =
-                try_schedule_local_remote_queue_contents();
+            remoteQueueReadSubmitted_ = try_schedule_local_remote_queue_contents();
             LOG("try_schedule_local_remote_queue_contents({})",
                 remoteQueueReadSubmitted_);
         }
@@ -69,6 +69,8 @@ void grpc_context::run_impl(const bool& shouldStop) {
         if (remoteQueueReadSubmitted_) {
             acquire_completion_queue_items();
         }
+
+        rate.sleep();
     }
 }
 
@@ -152,8 +154,8 @@ void grpc_context::acquire_completion_queue_items() {
         auto* task = static_cast<task_base*>(tag);
         task->execute(ok);
 
-        auto status = completionQueue_->AsyncNext(
-            &tag, &ok, gpr_now(GPR_CLOCK_MONOTONIC));
+        auto status =
+            completionQueue_->AsyncNext(&tag, &ok, gpr_now(GPR_CLOCK_MONOTONIC));
         if (status == grpc::CompletionQueue::NextStatus::SHUTDOWN) {
             LOG("completion queue is shutting down.");
             exit(-1);
