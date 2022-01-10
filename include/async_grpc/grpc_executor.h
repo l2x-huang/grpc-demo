@@ -8,8 +8,14 @@
 #include <unifex/async_scope.hpp>
 #include <unifex/inplace_stop_token.hpp>
 #include <unifex/static_thread_pool.hpp>
+#include <unifex/then.hpp>
 
 namespace agrpc {
+
+// clang-format off
+inline constexpr auto sink = [](auto&&...) {};
+inline constexpr auto discard = unifex::then(sink);
+// clang-format on
 
 class grpc_executor {
 public:
@@ -31,12 +37,12 @@ public:
 
     template <class Sender>
     inline void spawn_local(Sender&& sender) {
-        scope.spawn_on(grpc_ctx.get_scheduler(), (Sender &&) sender);
+        scope.spawn_on(grpc_ctx.get_scheduler(), discard((Sender &&) sender));
     }
 
     template <class Sender>
     inline void spawn_blocking(Sender&& sender) {
-        scope.spawn_on(pool_ctx.get_scheduler(), (Sender &&) sender);
+        scope.spawn_on(pool_ctx.get_scheduler(), discard((Sender &&) sender));
     }
 
     // notice: sender return void & noexcept
@@ -56,8 +62,8 @@ public:
     }
 
     template <class StopToken = unifex::inplace_stop_token>
-    inline void run(Rate rate = Rate(200), StopToken token = {}) {
-        grpc_ctx.run(rate, (StopToken &&) token);
+    inline void run(StopToken token = {}) {
+        grpc_ctx.run((StopToken &&) token);
     }
 
 private:

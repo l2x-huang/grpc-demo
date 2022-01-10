@@ -5,8 +5,8 @@
 #include <optional>
 #include <type_traits>
 #include <async_grpc/common.h>
-#include <async_grpc/executor.h>
 #include <async_grpc/grpc_context.h>
+#include <async_grpc/grpc_executor.h>
 #include <async_grpc/try.h>
 #include <google/protobuf/message.h>
 #include <grpcpp/client_context.h>
@@ -153,14 +153,10 @@ struct grpc_client_stream {
     }
 };
 
-template <class Rep2, class Rpc2, class Stub2, class Req2>
-inline grpc_client_stream<Rep2, Rpc2, Stub2, Req2>
-create_grpc_client_stream(grpc_executor& ctx,
-                          Rpc2 rpc,
-                          Stub2 stub,
-                          Req2&& req,
-                          std::function<void(grpc::ClientContext&)> f = nullptr) {
-    return {ctx, rpc, stub, (Req2 &&) req, f};
+template <class Rep2, class Rpc2, class Stub2, class Req2, class F>
+inline grpc_client_stream<Rep2, Rpc2, Stub2, Req2> grpc_client_stream_create(
+    grpc_executor& ctx, Rpc2 rpc, Stub2 stub, Req2&& req, F&& f = nullptr) {
+    return {ctx, rpc, stub, (Req2 &&) req, std::forward<F>(f)};
 }
 
 // server 1:1
@@ -169,8 +165,8 @@ unifex::task<void> async_call_data(
     grpc_executor& ex,
     Rpc rpc,
     Svc svc,
-    std::function<bool(const grpc::ServerContext&, const Req&, Rep&)> handle,
-    bool blocking = false) {
+    std::function<unifex::task<bool>(const grpc::ServerContext&, const Req&, Rep&)>
+        handle) {
     static_assert(std::is_base_of_v<google::protobuf::Message, Req>,
                   "Req expect to be `goolge::protobuf::Message`");
     static_assert(std::is_base_of_v<google::protobuf::Message, Rep>,
@@ -185,18 +181,10 @@ unifex::task<void> async_call_data(
     };
 
     auto make_task = [&](std::unique_ptr<State> shared) -> unifex::task<void> {
-        auto snd = unifex::just_from([&]() {
-            if (handle(shared->context, shared->request, shared->reply)) {
-                shared->status = grpc::Status::OK;
-            } else {
-                shared->status = grpc::Status(grpc::StatusCode::UNKNOWN, "unknown");
-            }
-        });
-
-        if (blocking) {
-            co_await unifex::on(ex.get_thread_scheduler(), std::move(snd));
+        if (co_await handle(shared->context, shared->request, shared->reply)) {
+            shared->status = grpc::Status::OK;
         } else {
-            co_await snd;
+            shared->status = grpc::Status(grpc::StatusCode::UNKNOWN, "unknown");
         }
 
         co_await ex.async([&](grpc::CompletionQueue*, void* tag) {
@@ -217,6 +205,31 @@ unifex::task<void> async_call_data(
             ex.spawn_on(ex.get_grpc_scheduler(), make_task(std::move(shared)));
         }
     }
+}
+
+template <class Req, class Rep, class Rpc, class Svc>
+unifex::task<void> async_call_data(
+    grpc_executor& ex,
+    Rpc rpc,
+    Svc svc,
+    std::function<bool(const grpc::ServerContext&, const Req&, Rep&)> handle,
+    bool blocking) {
+    return async_call_data<Req, Rep, Rpc, Svc>(
+        ex,
+        rpc,
+        svc,
+        [&ex, handle = std::move(handle), blocking](
+            const grpc::ServerContext& ctx,
+            const Req& req,
+            Rep& rep) -> unifex::task<bool> {
+            auto snd = unifex::just_from([&]() { return handle(ctx, req, rep); });
+            if (blocking) {
+                co_return co_await unifex::on(ex.get_thread_scheduler(),
+                                              std::move(snd));
+            } else {
+                co_return co_await snd;
+            }
+        });
 }
 
 // server 1:M

@@ -9,7 +9,7 @@ if(PROJECT_SOURCE_DIR STREQUAL PROJECT_BINARY_DIR)
   )
 endif()
 
-include(cmake/CPM.cmake)
+include(CPM)
 # PackageProject.cmake will be used to make our target installable
 cpmaddpackage("gh:TheLartians/PackageProject.cmake@1.8.0")
 find_package(Protobuf REQUIRED)
@@ -30,7 +30,7 @@ message(STATUS "Using gRPC ${gRPC_VERSION}")
 message(STATUS "protos: ${protos}")
 
 set(ALL_PROTO_FILES)
-include(./cmake/protoc.cmake)
+include(protoc)
 foreach(proto IN LISTS protos)
   protoc_gen(${proto} OUT proto_gen_files RELATIVE_PATH ./proto)
   list(APPEND ALL_PROTO_FILES ${proto_gen_files})

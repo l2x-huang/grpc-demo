@@ -40,7 +40,7 @@ bool grpc_context::is_running_on_io_thread() const noexcept {
     return this == kCurrentThreadContext;
 }
 
-void grpc_context::run_impl(const bool& shouldStop, Rate rate) {
+void grpc_context::run_impl(const bool& shouldStop) {
     LOG("run loop started");
     auto* old_ctx = std::exchange(kCurrentThreadContext, this);
     unifex::scope_guard g = [this, old_ctx]() noexcept {
@@ -69,8 +69,6 @@ void grpc_context::run_impl(const bool& shouldStop, Rate rate) {
         if (remoteQueueReadSubmitted_) {
             acquire_completion_queue_items();
         }
-
-        rate.sleep();
     }
 }
 

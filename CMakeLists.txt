@@ -18,8 +18,8 @@ endif()
 
 # ---- Add dependencies via CPM ----
 # see https://github.com/TheLartians/CPM.cmake for more info
-include(cmake/tools.cmake)
-include(cmake/CPM.cmake)
+include(tools)
+include(CPM)
 # PackageProject.cmake will be used to make our target installable
 cpmaddpackage("gh:TheLartians/PackageProject.cmake@1.8.0")
 
@@ -29,7 +29,7 @@ cpmaddpackage(
   GIT_TAG 8.0.1
   OPTIONS "FMT_INSTALL YES" # create an installable target
 )
-include(cmake/unifex.cmake)
+include(unifex)
 find_package(Protobuf REQUIRED)
 find_package(gRPC CONFIG REQUIRED)
 

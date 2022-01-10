@@ -2,7 +2,6 @@
 
 #include <atomic>
 #include <utility>
-#include <async_grpc/rate.h>
 #include <grpcpp/alarm.h>
 #include <grpcpp/grpcpp.h>
 #include <unifex/config.hpp>
@@ -45,7 +44,7 @@ public:
     grpc_context& operator=(grpc_context&&) = delete;
 
     template <class StopToken = unifex::inplace_stop_token>
-    void run(Rate rate, StopToken = {});
+    void run(StopToken = {});
 
     scheduler get_scheduler() noexcept;
 
@@ -54,7 +53,7 @@ public:
 
 private:
     bool is_running_on_io_thread() const noexcept;
-    void run_impl(const bool& shouldStop, Rate rate);
+    void run_impl(const bool& shouldStop);
 
     void schedule_impl(task_base* op);
     void schedule_local(task_base* op) noexcept;
@@ -290,7 +289,7 @@ private:
 };
 
 template <typename StopToken>
-void grpc_context::run(Rate rate, StopToken stopToken) {
+void grpc_context::run(StopToken stopToken) {
     struct stop_operation : task_base {
         stop_operation() noexcept {
             this->execute_ = [](task_base* op, bool) noexcept {
@@ -306,7 +305,7 @@ void grpc_context::run(Rate rate, StopToken stopToken) {
     };
     typename StopToken::template callback_type<decltype(onStopRequested)>
         stopCallback{std::move(stopToken), std::move(onStopRequested)};
-    run_impl(stopOp.shouldStop_, (Rate &&) rate);
+    run_impl(stopOp.shouldStop_);
 }
 
 template <class F>

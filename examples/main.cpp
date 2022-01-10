@@ -1,20 +1,20 @@
 #include "async_grpc/executor.h"
 #include "async_grpc/grpc_context.h"
 #include "async_grpc/rpcs.h"
-#include "helloworld/helloworld.grpc.pb.h"
-#include "helloworld/helloworld.pb.h"
 #include <functional>
-#include <google/protobuf/any.pb.h>
+#include <iostream>
+#include <string>
+#include <utility>
 #include <google/protobuf/util/json_util.h>
 #include <grpcpp/alarm.h>
 #include <grpcpp/grpcpp.h>
-#include <iostream>
-#include <string>
 #include <unifex/async_scope.hpp>
 #include <unifex/single_thread_context.hpp>
 #include <unifex/task.hpp>
 #include <unifex/then.hpp>
-#include <utility>
+#include "helloworld/helloworld.grpc.pb.h"
+#include "helloworld/helloworld.pb.h"
+#include <google/protobuf/any.pb.h>
 
 unifex::task<void> timeout(agrpc::grpc_context& ctx, int ms) {
     std::cout << " --------------------- before " << std::endl;
@@ -31,8 +31,7 @@ int main() {
     helloworld::Greeter::AsyncService service;
     // agrpc::grpc_context ctx(builder.AddCompletionQueue());
     agrpc::grpc_executor ex(builder.AddCompletionQueue());
-    builder.AddListeningPort("0.0.0.0:50051",
-                             grpc::InsecureServerCredentials());
+    builder.AddListeningPort("0.0.0.0:50051", grpc::InsecureServerCredentials());
     builder.RegisterService(&service);
     std::unique_ptr<grpc::Server> server = builder.BuildAndStart();
 
