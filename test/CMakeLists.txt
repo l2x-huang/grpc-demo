@@ -9,8 +9,8 @@ option(TEST_INSTALLED_VERSION "Test the version found by find_package" OFF)
 
 # --- Import tools ----
 # ---- Dependencies ----
-include(../cmake/tools.cmake)
-include(../cmake/CPM.cmake)
+include(tools)
+include(CPM)
 
 cpmaddpackage("gh:onqtam/doctest#2.4.5")
 cpmaddpackage("gh:TheLartians/Format.cmake@1.7.0")
