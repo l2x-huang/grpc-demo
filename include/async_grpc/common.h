@@ -1,8 +1,8 @@
 #pragma once
 
 #include <exception>
-#include <grpcpp/support/status.h>
 #include <string>
+#include <grpcpp/support/status.h>
 
 namespace agrpc {
 

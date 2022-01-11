@@ -14,6 +14,8 @@ include(CPM)
 
 cpmaddpackage("gh:onqtam/doctest#2.4.5")
 cpmaddpackage("gh:TheLartians/Format.cmake@1.7.0")
+find_package(Protobuf REQUIRED)
+find_package(gRPC CONFIG REQUIRED)
 
 if(TEST_INSTALLED_VERSION)
   find_package(${LIB_NAME} REQUIRED)
@@ -24,8 +26,8 @@ endif()
 # ---- Create binary ----
 file(GLOB sources CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 add_executable(${PROJECT_NAME} ${sources})
-target_link_libraries(${PROJECT_NAME} doctest::doctest ${LIB_NAME}::${LIB_NAME})
-set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 17)
+target_link_libraries(${PROJECT_NAME} doctest::doctest ${LIB_NAME}::${LIB_NAME} gRPC::grpc++ gRPC::gpr)
+set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 20)
 
 # enable compiler warnings
 if(NOT TEST_INSTALLED_VERSION)

@@ -52,7 +52,8 @@ set_target_properties(${PROJECT_NAME} PROPERTIES CXX_STANDARD 20)
 target_compile_options(${PROJECT_NAME} PUBLIC "$<$<COMPILE_LANG_AND_ID:CXX,ARMClang,AppleClang,Clang>:-stdlib=libc++>")
 target_compile_options(${PROJECT_NAME} PUBLIC "$<$<COMPILE_LANG_AND_ID:CXX,MSVC>:/permissive->")
 target_link_libraries(
-  ${PROJECT_NAME} PRIVATE fmt::fmt
+  ${PROJECT_NAME}
+  PRIVATE fmt::fmt absl::failure_signal_handler absl::symbolize
   PUBLIC unifex::unifex gRPC::grpc++ gRPC::gpr
 )
 target_include_directories(

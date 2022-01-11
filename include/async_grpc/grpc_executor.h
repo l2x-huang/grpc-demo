@@ -12,10 +12,12 @@
 
 namespace agrpc {
 
+namespace detail {
 // clang-format off
 inline constexpr auto sink = [](auto&&...) {};
 inline constexpr auto discard = unifex::then(sink);
 // clang-format on
+}  // namespace detail
 
 class grpc_executor {
 public:
@@ -37,12 +39,14 @@ public:
 
     template <class Sender>
     inline void spawn_local(Sender&& sender) {
-        scope.spawn_on(grpc_ctx.get_scheduler(), discard((Sender &&) sender));
+        scope.spawn_on(grpc_ctx.get_scheduler(),
+                       detail::discard((Sender &&) sender));
     }
 
     template <class Sender>
     inline void spawn_blocking(Sender&& sender) {
-        scope.spawn_on(pool_ctx.get_scheduler(), discard((Sender &&) sender));
+        scope.spawn_on(pool_ctx.get_scheduler(),
+                       detail::discard((Sender &&) sender));
     }
 
     // notice: sender return void & noexcept

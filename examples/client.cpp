@@ -1,18 +1,18 @@
-#include "async_grpc/common.h"
-#include "async_grpc/grpc_executor.h"
-#include "async_grpc/grpc_context.h"
-#include "async_grpc/rpcs.h"
-#include "unifex/inplace_stop_token.hpp"
-#include "unifex/scope_guard.hpp"
 #include <exception>
 #include <string>
 #include <thread>
 #include <utility>
+#include <async_grpc/common.h>
+#include <async_grpc/grpc_context.h>
+#include <async_grpc/grpc_executor.h>
+#include <async_grpc/rpcs.h>
 #include <grpcpp/grpcpp.h>
 #include <grpcpp/security/credentials.h>
+#include <unifex/inplace_stop_token.hpp>
+#include <unifex/scope_guard.hpp>
 #include <unifex/sync_wait.hpp>
-#include "helloworld/helloworld.grpc.pb.h"
-#include "helloworld/helloworld.pb.h"
+#include <helloworld/helloworld.grpc.pb.h>
+#include <helloworld/helloworld.pb.h>
 
 int main() {
     grpc::ServerBuilder builder;
@@ -57,9 +57,7 @@ int main() {
         }
     } catch (std::exception& e) {
         std::cout << "got exception: " << e.what() << std::endl;
-    } catch (...) {
-        std::cout << "got exception" << std::endl;
-    }
+    } catch (...) { std::cout << "got exception" << std::endl; }
 
     return 0;
 }

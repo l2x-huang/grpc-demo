@@ -4,6 +4,7 @@
 #include <memory>
 #include <optional>
 #include <type_traits>
+#include <absl/functional/function_ref.h>
 #include <async_grpc/common.h>
 #include <async_grpc/grpc_context.h>
 #include <async_grpc/grpc_executor.h>
@@ -26,6 +27,12 @@
 
 namespace agrpc {
 
+namespace detail {
+// clang-format off
+inline constexpr auto discard_handle_context = [](auto&&...) {};
+// clang-format on
+}  // namespace detail
+
 // client 1:1
 template <class Rep, class Rpc, class Stub, class Req>
 unifex::task<Try<Rep>>
@@ -33,16 +40,15 @@ async_client_call(grpc_executor& ex,
                   Rpc rpc,
                   Stub stub,
                   Req req,
-                  std::function<void(grpc::ClientContext&)> handle = nullptr) {
+                  absl::FunctionRef<void(grpc::ClientContext&)> handle =
+                      detail::discard_handle_context) {
     static_assert(std::is_base_of_v<google::protobuf::Message, Req>,
                   "Req expect to be `google::protobuf::Message`");
     static_assert(std::is_base_of_v<google::protobuf::Message, Rep>,
                   "Req expect to be `google::protobuf::Message`");
 
     grpc::ClientContext context;
-    if (handle) {
-        handle(context);
-    }
+    handle(context);
     std::unique_ptr<grpc::ClientAsyncResponseReader<Rep>> responder;
     Rep rep;
     grpc::Status status;
@@ -73,7 +79,7 @@ struct grpc_client_stream {
                        Rpc rpc,
                        Stub stub,
                        Req&& req,
-                       std::function<void(grpc::ClientContext&)> f)
+                       absl::FunctionRef<void(grpc::ClientContext&)> f)
       : ex_(ex)
       , rpc_(rpc)
       , stub_(stub)
@@ -154,8 +160,12 @@ struct grpc_client_stream {
 };
 
 template <class Rep2, class Rpc2, class Stub2, class Req2, class F>
-inline grpc_client_stream<Rep2, Rpc2, Stub2, Req2> grpc_client_stream_create(
-    grpc_executor& ctx, Rpc2 rpc, Stub2 stub, Req2&& req, F&& f = nullptr) {
+inline grpc_client_stream<Rep2, Rpc2, Stub2, Req2>
+grpc_client_stream_create(grpc_executor& ctx,
+                          Rpc2 rpc,
+                          Stub2 stub,
+                          Req2&& req,
+                          F&& f = detail::discard_handle_context) {
     return {ctx, rpc, stub, (Req2 &&) req, std::forward<F>(f)};
 }
 

@@ -5,6 +5,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include <utility>
+#include <absl/debugging/failure_signal_handler.h>
+#include <absl/debugging/symbolize.h>
 #include <async_grpc/rate.h>
 #include <unifex/config.hpp>
 #include <unifex/scope_guard.hpp>
@@ -29,12 +31,9 @@ static thread_local grpc_context* kCurrentThreadContext = nullptr;
 grpc_context::grpc_context(std::unique_ptr<grpc::CompletionQueue> cq)
   : remoteQueueReadSubmitted_(false)
   , isNotifing_(false)
-  , completionQueue_(std::move(cq)) {
-}
+  , completionQueue_(std::move(cq)) {}
 
-grpc_context::~grpc_context() {
-    completionQueue_->Shutdown();
-}
+grpc_context::~grpc_context() { completionQueue_->Shutdown(); }
 
 bool grpc_context::is_running_on_io_thread() const noexcept {
     return this == kCurrentThreadContext;
@@ -47,6 +46,10 @@ void grpc_context::run_impl(const bool& shouldStop) {
         std::exchange(kCurrentThreadContext, old_ctx);
         LOG("run loop exited");
     };
+
+    // register failure handle
+    absl::FailureSignalHandlerOptions option;
+    absl::InstallFailureSignalHandler(option);
 
     while (true) {
         // Dequeue and process local queue items (ready to run)

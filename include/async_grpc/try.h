@@ -10,7 +10,7 @@ namespace agrpc {
 
 namespace detail {
 struct Blank {};
-}  // namespace
+}  // namespace detail
 
 template <typename T>
 class Try {
@@ -110,4 +110,4 @@ struct TryWrapper<Try<T>> {
 
 template <typename T>
 using try_type_t = typename TryWrapper<T>::type;
-}  // namespace cc
+}  // namespace agrpc
